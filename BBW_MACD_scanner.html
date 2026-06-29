@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBW + MACD 金叉篩選器</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e8eaf0;
+    --text2: #8b90a8;
+    --text3: #555a72;
+    --accent: #4f8ef7;
+    --accent2: #3b7de8;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --purple: #a78bfa;
+    --mono: 'JetBrains Mono','Fira Code','Courier New',monospace;
+    --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 1000px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 0.5px solid var(--border); }
+  .logo { width: 40px; height: 40px; background: linear-gradient(135deg, #4f8ef7 0%, #7c5cfc 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  header p { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .badge { margin-left: auto; font-size: 11px; font-family: var(--mono); background: var(--bg3); border: 0.5px solid var(--border2); color: var(--text2); padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px; }
+  .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; font-size: 13px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; }
+  label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 5px; letter-spacing: 0.3px; }
+  input[type="text"], input[type="password"], input[type="number"], textarea, select {
+    width: 100%; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: var(--radius);
+    color: var(--text); font-family: var(--sans); font-size: 13px; padding: 8px 12px; outline: none; transition: border-color 0.15s;
+  }
+  textarea { font-family: var(--mono); resize: vertical; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.12); }
+  select option { background: var(--bg3); }
+  .api-row { display: flex; gap: 8px; align-items: flex-end; }
+  .api-row input { flex: 1; }
+  .api-status { font-size: 12px; margin-top: 8px; min-height: 18px; font-family: var(--mono); }
+  .api-status.ok { color: var(--success); }
+  .api-status.err { color: var(--danger); }
+  .params-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .params-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .params-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .params-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .filter-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .filter-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .filter-label { font-size: 13px; color: var(--text); flex: 1; }
+  .filter-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 20px; cursor: pointer; transition: 0.2s; }
+  .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px; left: 2px; top: 2px; background: var(--text3); border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(16px); background: #fff; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 1.5rem; }
+  button { font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  button:hover { background: var(--bg2); border-color: var(--accent); color: var(--accent); }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  button.ghost { background: transparent; border-color: transparent; color: var(--text2); }
+  button.ghost:hover { color: var(--text); border-color: var(--border2); background: var(--bg3); }
+  .preset-label { font-size: 12px; color: var(--text3); margin-right: 2px; }
+  .progress-wrap { display: none; margin-bottom: 1.5rem; }
+  .progress-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-family: var(--mono); }
+  .progress-track { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+  .error-box { display: none; padding: 12px 14px; border-radius: var(--radius); background: rgba(248,113,113,0.08); border: 0.5px solid rgba(248,113,113,0.25); color: var(--danger); font-size: 13px; margin-bottom: 1rem; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--bg3); border-radius: var(--radius); padding: 14px; border: 0.5px solid var(--border); }
+  .stat-card.clickable { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+  .stat-card.clickable:hover { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(167,139,250,0.12); }
+  .stat-card.active-view { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(167,139,250,0.18); }
+  .stat-card .view-hint { font-size: 10px; color: var(--text3); margin-top: 4px; letter-spacing: 0.3px; }
+  .stat-card.active-view .view-hint { color: var(--purple); }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 700; font-family: var(--mono); letter-spacing: -1px; }
+  .stat-value.green { color: var(--success); }
+  .stat-value.purple { color: var(--purple); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+  thead th.r { text-align: right; }
+  thead th.c { text-align: center; }
+  tbody tr { border-bottom: 0.5px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--bg3); }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 10px 12px; vertical-align: middle; }
+  td.r { text-align: right; }
+  td.c { text-align: center; }
+  .sym { font-family: var(--mono); font-weight: 600; font-size: 14px; color: var(--text); }
+  .mono-val { font-family: var(--mono); font-size: 12px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; letter-spacing: 0.3px; white-space: nowrap; }
+  .tag.extreme { background: rgba(248,113,113,0.12); color: var(--danger); border: 0.5px solid rgba(248,113,113,0.25); }
+  .tag.squeeze { background: rgba(251,191,36,0.12); color: var(--warning); border: 0.5px solid rgba(251,191,36,0.25); }
+  .tag.golden { background: rgba(167,139,250,0.12); color: var(--purple); border: 0.5px solid rgba(167,139,250,0.25); }
+  .tag.no-cross { background: rgba(139,144,168,0.1); color: var(--text3); border: 0.5px solid var(--border); }
+  .tag.ma-bull { background: rgba(52,211,153,0.12); color: var(--success); border: 0.5px solid rgba(52,211,153,0.25); }
+  .tag.ma-partial { background: rgba(251,191,36,0.12); color: var(--warning); border: 0.5px solid rgba(251,191,36,0.25); }
+  .tag.ma-bear { background: rgba(139,144,168,0.1); color: var(--text3); border: 0.5px solid var(--border); }
+  .tag.rsi-high { background: rgba(52,211,153,0.12); color: var(--success); border: 0.5px solid rgba(52,211,153,0.25); }
+  .tag.rsi-mid  { background: rgba(251,191,36,0.12); color: var(--warning); border: 0.5px solid rgba(251,191,36,0.25); }
+  .tag.rsi-low  { background: rgba(248,113,113,0.12); color: var(--danger);  border: 0.5px solid rgba(248,113,113,0.25); }
+  .dif-pos { color: var(--success); }
+  .dif-neg { color: var(--danger); }
+  .empty-row td { text-align: center; padding: 2.5rem; color: var(--text3); font-size: 13px; }
+  footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text3); flex-wrap: wrap; gap: 8px; }
+  footer a { color: var(--text2); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+  .section-divider { display: flex; align-items: center; gap: 10px; margin: 0.5rem 0 1rem; }
+  .section-divider span { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; }
+  .section-divider hr { flex: 1; border: none; border-top: 0.5px solid var(--border); }
+  @media (max-width: 640px) {
+    .params-grid, .params-grid-4 { grid-template-columns: 1fr 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    header { flex-wrap: wrap; }
+    .badge { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">📊</div>
+    <div>
+      <h1>BBW + MACD 金叉篩選器</h1>
+      <p>FinMind API × 布林通道壓縮 × DIF 上穿 DEA 複合條件</p>
+    </div>
+    <span class="badge">v3.4</span>
+  </header>
+
+  <!-- API 設定 -->
+  <div class="card">
+    <div class="card-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      FinMind API 設定
+    </div>
+    <div class="api-row">
+      <div style="flex:1">
+        <label for="api-key">API Token</label>
+        <input type="password" id="api-key" placeholder="輸入你的 FinMind API Token">
+      </div>
+      <button onclick="testAPI()" id="test-btn" style="height:36px;margin-top:17px">驗證連線</button>
+    </div>
+    <div class="api-status" id="api-status"></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--text3)">
+      還沒有帳號？<a href="https://finmindtrade.com" target="_blank" style="color:var(--accent)">前往 FinMind 免費註冊</a>，登入後在個人頁面取得 Token。免費版每天 600 次請求。
+    </div>
+  </div>
+
+  <!-- 條件過濾 -->
+  <div class="card">
+    <div class="card-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      條件過濾設定
+    </div>
+
+    <div class="section-divider"><span>布林通道</span><hr></div>
+    <div class="params-grid" style="margin-bottom:1rem">
+      <div>
+        <label for="bb-length">週期（N）</label>
+        <input type="number" id="bb-length" value="20" min="5" max="60">
+      </div>
+      <div>
+        <label for="bb-std">標準差倍數</label>
+        <input type="number" id="bb-std" value="2" min="1" max="3" step="0.1">
+      </div>
+      <div>
+        <label for="bb-threshold">BBW 閾值（上限）</label>
+        <input type="number" id="bb-threshold" value="0.1" min="0.01" max="1" step="0.01">
+      </div>
+    </div>
+
+    <div class="section-divider"><span>MACD 參數</span><hr></div>
+    <div class="params-grid-4" style="margin-bottom:1rem">
+      <div>
+        <label for="macd-fast">快線 EMA</label>
+        <input type="number" id="macd-fast" value="12" min="2" max="50">
+      </div>
+      <div>
+        <label for="macd-slow">慢線 EMA</label>
+        <input type="number" id="macd-slow" value="26" min="5" max="100">
+      </div>
+      <div>
+        <label for="macd-signal">Signal 線</label>
+        <input type="number" id="macd-signal" value="9" min="2" max="30">
+      </div>
+      <div>
+        <label for="cross-lookback">金叉回溯天數</label>
+        <input type="number" id="cross-lookback" value="3" min="1" max="10" title="過去幾天內發生金叉視為有效">
+      </div>
+    </div>
+
+    <div class="section-divider"><span>啟用條件</span><hr></div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">BBW 壓縮</div>
+        <div class="filter-sub">BBW 必須低於閾值</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-bbw" checked><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">MACD 金叉（DIF 上穿 DEA）</div>
+        <div class="filter-sub">近 N 天內 DIF 從下方穿越 DEA</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-golden" checked><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">DIF 在零軸以下金叉（更強勢）</div>
+        <div class="filter-sub">金叉發生時 DIF < 0，起漲初期</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-below-zero"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">Histogram 由負轉正</div>
+        <div class="filter-sub">MACD 柱狀圖最新值 > 0</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-hist-pos"><span class="toggle-slider"></span></label>
+    </div>
+
+    <div class="section-divider"><span>均線多頭排列</span><hr></div>
+    <div class="params-grid-4" style="margin-bottom:1rem">
+      <div>
+        <label for="ma1">MA1 週期</label>
+        <input type="number" id="ma1" value="5" min="1" max="30">
+      </div>
+      <div>
+        <label for="ma2">MA2 週期</label>
+        <input type="number" id="ma2" value="10" min="5" max="60">
+      </div>
+      <div>
+        <label for="ma3">MA3 週期</label>
+        <input type="number" id="ma3" value="20" min="10" max="120">
+      </div>
+      <div>
+        <label for="ma4">MA4 週期</label>
+        <input type="number" id="ma4" value="60" min="20" max="250">
+      </div>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">均線多頭排列（MA1 > MA2 > MA3 > MA4）</div>
+        <div class="filter-sub">短中長期均線由上至下依序排列，確認上升趨勢</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-ma-bullish"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">收盤價站上所有均線</div>
+        <div class="filter-sub">收盤 > MA1 > MA2 > MA3 > MA4</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-price-above-ma"><span class="toggle-slider"></span></label>
+    </div>
+
+    <div class="section-divider"><span>RSI</span><hr></div>
+    <div class="params-grid-2" style="margin-bottom:1rem">
+      <div>
+        <label for="rsi-period">RSI 週期</label>
+        <input type="number" id="rsi-period" value="14" min="2" max="50">
+      </div>
+      <div>
+        <label for="rsi-threshold">RSI 門檻值（最低）</label>
+        <input type="number" id="rsi-threshold" value="50" min="1" max="99" step="1">
+      </div>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">RSI 站上門檻值</div>
+        <div class="filter-sub">RSI(14) ≥ 50，動能偏多</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-rsi" checked><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">RSI 由下穿上門檻值（突破）</div>
+        <div class="filter-sub">近 N 天內 RSI 從門檻值以下向上穿越，動能剛轉強</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-rsi-cross"><span class="toggle-slider"></span></label>
+    </div>
+
+    <div class="section-divider"><span>成交量放大</span><hr></div>
+    <div class="params-grid-2" style="margin-bottom:1rem">
+      <div>
+        <label for="vol-ma-period">量均線週期（基準）</label>
+        <input type="number" id="vol-ma-period" value="20" min="3" max="60">
+      </div>
+      <div>
+        <label for="vol-ratio">放大倍率（≥ N 倍）</label>
+        <input type="number" id="vol-ratio" value="1.5" min="1.1" max="10" step="0.1">
+      </div>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">當日成交量放大</div>
+        <div class="filter-sub" id="vol-label-today">今日量 ≥ 1.5 × MA20 量，短線動能確認</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-vol-today"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">近期持續放量（量能趨勢）</div>
+        <div class="filter-sub" id="vol-label-trend">近 3 日均量 ≥ 1.5 × MA20 量，確認持續買盤</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-vol-trend"><span class="toggle-slider"></span></label>
+    </div>
+
+    <div class="section-divider"><span>股價站上均線</span><hr></div>
+    <div class="params-grid-3" style="margin-bottom:1rem">
+      <div>
+        <label for="cross-ma1">均線 1（日）</label>
+        <input type="number" id="cross-ma1" value="20" min="1" max="50">
+      </div>
+      <div>
+        <label for="cross-ma2">均線 2（日）</label>
+        <input type="number" id="cross-ma2" value="60" min="10" max="120">
+      </div>
+      <div>
+        <label for="cross-ma3">均線 3（日）</label>
+        <input type="number" id="cross-ma3" value="100" min="20" max="250">
+      </div>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">股價剛站上均線 1（突破）</div>
+        <div class="filter-sub" id="cross-ma1-label">近 N 天內收盤從 MA20 以下向上穿越，短線剛轉強</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-cross-ma1"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">股價剛站上均線 2（突破）</div>
+        <div class="filter-sub" id="cross-ma2-label">近 N 天內收盤從 MA60 以下向上穿越，中線剛轉強</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-cross-ma2"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">股價剛站上均線 3（突破）</div>
+        <div class="filter-sub" id="cross-ma3-label">近 N 天內收盤從 MA100 以下向上穿越，長線剛轉強</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-cross-ma3"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="filter-row">
+      <div>
+        <div class="filter-label">股價站上所有指定均線（目前）</div>
+        <div class="filter-sub" id="cross-all-label">收盤 > MA20 且 > MA60 且 > MA100</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="filter-cross-all"><span class="toggle-slider"></span></label>
+    </div>
+  </div>
+
+  <!-- 股票清單 -->
+  <div class="card">
+    <div class="card-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      股票清單
+    </div>
+    <label for="stock-input">股票代號（每行一個，純數字）</label>
+    <textarea id="stock-input" rows="8">1101
+1102
+1103
+1104
+1108
+1109
+1110
+1210
+1213
+1215
+1216
+1218
+1220
+1227
+1229
+1231
+1232
+1233
+1301
+1303
+1304
+1305
+1306
+1308
+1309
+1310
+1312
+1313
+1314
+1315
+1402
+1404
+1409
+1413
+1414
+1416
+1417
+1418
+1419
+1434
+1436
+1440
+1441
+1442
+1443
+1444
+1445
+1446
+1447
+1448
+1449
+1503
+1504
+1506
+1507
+1512
+1513
+1514
+1515
+1516
+1517
+1519
+1521
+1522
+1524
+1525
+1526
+1527
+1528
+1529
+1537
+1538
+1540
+1541
+1542
+1543
+1544
+1545
+1546
+1603
+1605
+1752
+1760
+2002
+2006
+2008
+2010
+2014
+2015
+2016
+2031
+2032
+2038
+2049
+2059
+2201
+2204
+2207
+2208
+2301
+2303
+2308
+2317
+2324
+2327
+2330
+2337
+2344
+2347
+2351
+2353
+2354
+2356
+2357
+2360
+2364
+2367
+2376
+2377
+2379
+2382
+2383
+2385
+2388
+2395
+2408
+2409
+2412
+2448
+2449
+2454
+2458
+2501
+2502
+2503
+2504
+2505
+2506
+2511
+2515
+2516
+2520
+2521
+2522
+2603
+2605
+2606
+2607
+2608
+2609
+2610
+2611
+2615
+2616
+2618
+2701
+2702
+2707
+2712
+2723
+2727
+2731
+2801
+2820
+2823
+2833
+2850
+2851
+2852
+2881
+2882
+2883
+2884
+2885
+2886
+2887
+2888
+2889
+2890
+2891
+2892
+2905
+2910
+2912
+2915
+3008
+3014
+3016
+3026
+3034
+3035
+3037
+3041
+3044
+3045
+3231
+3293
+3443
+3481
+3533
+3596
+3630
+3665
+3698
+3711
+4119
+4126
+4128
+4129
+4144
+4148
+4153
+4154
+4157
+4160
+4166
+4168
+4171
+4174
+4175
+4176
+4177
+4179
+4904
+4906
+4977
+5274
+5876
+5880
+6223
+6269
+6274
+6415
+6505
+6515
+6531
+6669
+6770
+8046</textarea>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="scan-btn" onclick="runScan()">▶ 開始掃描</button>
+    <span class="preset-label">快速載入：</span>
+    <button onclick="loadPreset('semi')">半導體</button>
+    <button onclick="loadPreset('fin')">金融股</button>
+    <button onclick="loadPreset('server')">伺服器</button>
+    <button onclick="loadPreset('all')">全部 239 檔</button>
+    <button class="ghost" onclick="clearAll()">清除</button>
+  </div>
+
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-top">
+      <span id="progress-label">掃描中...</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <div class="error-box" id="error-msg"></div>
+
+  <div id="results-section" style="display:none">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">掃描總數</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">BBW 壓縮</div>
+        <div class="stat-value green" id="stat-bbw">—</div>
+      </div>
+      <div class="stat-card clickable" id="card-golden" onclick="toggleGoldenView()">
+        <div class="stat-label">MACD 金叉</div>
+        <div class="stat-value purple" id="stat-golden">—</div>
+        <div class="view-hint" id="golden-hint">點擊查看金叉清單</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">條件命中</div>
+        <div class="stat-value green" id="stat-hit">—</div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div id="view-mode-bar" style="display:none;padding:8px 16px;background:rgba(167,139,250,0.08);border-bottom:0.5px solid rgba(167,139,250,0.2);font-size:12px;color:var(--purple);display:flex;align-items:center;gap:8px">
+        <span>👁 目前顯示：<strong id="view-mode-label">MACD 金叉清單</strong></span>
+        <button onclick="toggleGoldenView()" style="margin-left:auto;background:none;border:0.5px solid var(--purple);color:var(--purple);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:11px">切換回條件命中</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>代號</th>
+              <th class="r">收盤價</th>
+              <th class="r">BBW</th>
+              <th class="r">DIF</th>
+              <th class="r">DEA</th>
+              <th class="r">Hist</th>
+              <th class="r">RSI</th>
+              <th class="r">量比</th>
+              <th class="c">BB 狀態</th>
+              <th class="c">MACD</th>
+              <th class="c">均線排列</th>
+              <th class="c">站上均線</th>
+            </tr>
+          </thead>
+          <tbody id="result-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>資料來源：FinMind TaiwanStockPrice</span>
+    <span>BBW = (上軌−下軌)÷中軌 ｜ DIF 上穿 DEA = 金叉</span>
+  </footer>
+
+</div>
+
+<script>
+const PRESETS = {
+  semi:   ['2330','2303','2308','2337','2344','2379','2454','3443','3711','6770','3034','6415','3035','6531','2385'],
+  fin:    ['2881','2882','2883','2884','2885','2886','2887','2891','2892','5876','5880'],
+  server: ['2317','2382','2357','2376','6669','3231','2353','3045','4906','3630'],
+  all:    ['1101','1102','1103','1104','1108','1109','1110','1210','1213','1215','1216','1218','1220','1227','1229','1231','1232','1233','1301','1303','1304','1305','1306','1308','1309','1310','1312','1313','1314','1315','1402','1404','1409','1413','1414','1416','1417','1418','1419','1434','1436','1440','1441','1442','1443','1444','1445','1446','1447','1448','1449','1503','1504','1506','1507','1512','1513','1514','1515','1516','1517','1519','1521','1522','1524','1525','1526','1527','1528','1529','1537','1538','1540','1541','1542','1543','1544','1545','1546','1603','1605','1752','1760','2002','2006','2008','2010','2014','2015','2016','2031','2032','2038','2049','2059','2201','2204','2207','2208','2301','2303','2308','2317','2324','2327','2330','2337','2344','2347','2351','2353','2354','2356','2357','2360','2364','2367','2376','2377','2379','2382','2383','2385','2388','2395','2408','2409','2412','2448','2449','2454','2458','2501','2502','2503','2504','2505','2506','2511','2515','2516','2520','2521','2522','2603','2605','2606','2607','2608','2609','2610','2611','2615','2616','2618','2701','2702','2707','2712','2723','2727','2731','2801','2820','2823','2833','2850','2851','2852','2881','2882','2883','2884','2885','2886','2887','2888','2889','2890','2891','2892','2905','2910','2912','2915','3008','3014','3016','3026','3034','3035','3037','3041','3044','3045','3231','3293','3443','3481','3533','3596','3630','3665','3698','3711','4119','4126','4128','4129','4144','4148','4153','4154','4157','4160','4166','4168','4171','4174','4175','4176','4177','4179','4904','4906','4977','5274','5876','5880','6223','6269','6274','6415','6505','6515','6531','6669','6770','8046']
+};
+
+function loadPreset(t) { document.getElementById('stock-input').value = PRESETS[t].join('\n'); }
+
+function clearAll() {
+  document.getElementById('stock-input').value = '';
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('error-msg').style.display = 'none';
+  document.getElementById('progress-wrap').style.display = 'none';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function setAPIStatus(msg, ok) {
+  const el = document.getElementById('api-status');
+  el.textContent = msg;
+  el.className = 'api-status ' + (ok ? 'ok' : 'err');
+}
+
+function setProgress(cur, total, label) {
+  const pct = total > 0 ? Math.round(cur / total * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-label').textContent = label || `掃描中 ${cur}/${total}`;
+}
+
+function getDateRange(days) {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  const fmt = d => d.toISOString().slice(0, 10);
+  return { start: fmt(start), end: fmt(end) };
+}
+
+async function fetchFinMind(stockId, apiKey) {
+  const { start, end } = getDateRange(260);
+  const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stockId}&start_date=${start}&end_date=${end}&token=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.status !== 200) throw new Error(json.msg || 'API error');
+  return json.data;
+}
+
+async function testAPI() {
+  const key = document.getElementById('api-key').value.trim();
+  if (!key) { setAPIStatus('請輸入 API Token', false); return; }
+  const btn = document.getElementById('test-btn');
+  btn.disabled = true; btn.textContent = '驗證中...';
+  setAPIStatus('連線中...', true);
+  try {
+    const data = await fetchFinMind('2330', key);
+    if (data && data.length > 0) {
+      setAPIStatus(`✓ 驗證成功，已取得 ${data.length} 筆 2330 資料`, true);
+    } else {
+      setAPIStatus('✗ 驗證失敗：無法取得資料', false);
+    }
+  } catch(e) {
+    setAPIStatus('✗ 驗證失敗：' + e.message, false);
+  }
+  btn.disabled = false; btn.textContent = '驗證連線';
+}
+
+// ── 布林通道 ──
+function calcBB(closes, length, std) {
+  if (closes.length < length) return null;
+  const slice = closes.slice(-length);
+  const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
+  const variance = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / slice.length;
+  const sd = Math.sqrt(variance);
+  const upper = mean + std * sd;
+  const lower = mean - std * sd;
+  const bbw = mean > 0 ? (upper - lower) / mean : null;
+  return bbw != null ? { mean, upper, lower, bbw } : null;
+}
+
+// ── EMA ──
+function calcEMA(data, period) {
+  if (data.length < period) return [];
+  const k = 2 / (period + 1);
+  const result = [];
+  let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  result.push(ema);
+  for (let i = period; i < data.length; i++) {
+    ema = data[i] * k + ema * (1 - k);
+    result.push(ema);
+  }
+  return result;
+}
+
+// ── MACD ──
+function calcMACD(closes, fast, slow, signal) {
+  if (closes.length < slow + signal) return null;
+  const emaFast = calcEMA(closes, fast);
+  const emaSlow = calcEMA(closes, slow);
+  const offset = emaFast.length - emaSlow.length;
+  const dif = emaSlow.map((v, i) => emaFast[i + offset] - v);
+  const dea = calcEMA(dif, signal);
+  const difOffset = dif.length - dea.length;
+  const hist = dea.map((v, i) => dif[i + difOffset] - v);
+  return { dif, dea, hist };
+}
+
+// ── 金叉偵測：過去 lookback 天內 DIF 上穿 DEA ──
+function detectGoldenCross(dif, dea, lookback) {
+  const n = Math.min(dif.length, dea.length);
+  const aligned_dif = dif.slice(dif.length - n);
+  const aligned_dea = dea.slice(dea.length - n);
+
+  for (let i = n - lookback; i < n; i++) {
+    if (i < 1) continue;
+    const todayAbove = aligned_dif[i] > aligned_dea[i];
+    const prevBelow  = aligned_dif[i - 1] <= aligned_dea[i - 1];
+    if (todayAbove && prevBelow) return true;
+  }
+  return false;
+}
+
+// ── SMA ──
+function calcSMA(closes, period) {
+  if (closes.length < period) return null;
+  const slice = closes.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / slice.length;
+}
+
+// ── 均線多頭排列判斷 ──
+function calcMAbullish(closes, periods) {
+  const mas = periods.map(p => calcSMA(closes, p));
+  if (mas.some(v => v === null)) return { valid: false, bullish: false, priceAbove: false, mas };
+  // 多頭排列: MA1 > MA2 > MA3 > MA4
+  let bullish = true;
+  for (let i = 0; i < mas.length - 1; i++) {
+    if (mas[i] <= mas[i + 1]) { bullish = false; break; }
+  }
+  const close = closes[closes.length - 1];
+  const priceAbove = bullish && close > mas[0];
+  return { valid: true, bullish, priceAbove, mas };
+}
+
+// ── RSI (Wilder smoothing) ──
+function calcRSI(closes, period) {
+  if (closes.length < period + 1) return null;
+  const rsiArr = [];
+  let gainSum = 0, lossSum = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i - 1];
+    if (diff > 0) gainSum += diff; else lossSum -= diff;
+  }
+  let avgGain = gainSum / period;
+  let avgLoss = lossSum / period;
+  rsiArr.push(avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss));
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i - 1];
+    const gain = diff > 0 ? diff : 0;
+    const loss = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    rsiArr.push(avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss));
+  }
+  return rsiArr;
+}
+
+async function runScan() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey) { showError('請先輸入 FinMind API Token 並驗證'); return; }
+
+  const raw = document.getElementById('stock-input').value.trim();
+  if (!raw) { showError('請輸入至少一個股票代號'); return; }
+
+  const symbols = [...new Set(raw.split('\n').map(s => s.trim().replace(/\.TW$/i, '')).filter(Boolean))];
+
+  // 參數
+  const bbLen   = parseInt(document.getElementById('bb-length').value) || 20;
+  const bbStd   = parseFloat(document.getElementById('bb-std').value) || 2;
+  const bbThr   = parseFloat(document.getElementById('bb-threshold').value) || 0.1;
+  const fast    = parseInt(document.getElementById('macd-fast').value) || 12;
+  const slow    = parseInt(document.getElementById('macd-slow').value) || 26;
+  const sig     = parseInt(document.getElementById('macd-signal').value) || 9;
+  const lookbk  = parseInt(document.getElementById('cross-lookback').value) || 3;
+
+  // 過濾開關
+  const useBBW          = document.getElementById('filter-bbw').checked;
+  const useGolden       = document.getElementById('filter-golden').checked;
+  const useBelowZero    = document.getElementById('filter-below-zero').checked;
+  const useHistPos      = document.getElementById('filter-hist-pos').checked;
+  const useMaBullish    = document.getElementById('filter-ma-bullish').checked;
+  const usePriceAboveMa = document.getElementById('filter-price-above-ma').checked;
+  const useRSI          = document.getElementById('filter-rsi').checked;
+  const useRSICross     = document.getElementById('filter-rsi-cross').checked;
+  const useVolToday     = document.getElementById('filter-vol-today').checked;
+  const useVolTrend     = document.getElementById('filter-vol-trend').checked;
+  const useCrossMa1     = document.getElementById('filter-cross-ma1').checked;
+  const useCrossMa2     = document.getElementById('filter-cross-ma2').checked;
+  const useCrossMa3     = document.getElementById('filter-cross-ma3').checked;
+  const useCrossAll     = document.getElementById('filter-cross-all').checked;
+
+  const rsiPeriod    = parseInt(document.getElementById('rsi-period').value) || 14;
+  const rsiThreshold = parseFloat(document.getElementById('rsi-threshold').value) || 50;
+  const volMaPeriod  = parseInt(document.getElementById('vol-ma-period').value) || 20;
+  const volRatio     = parseFloat(document.getElementById('vol-ratio').value) || 1.5;
+  const crossMaPeriods = [
+    parseInt(document.getElementById('cross-ma1').value) || 20,
+    parseInt(document.getElementById('cross-ma2').value) || 60,
+    parseInt(document.getElementById('cross-ma3').value) || 100,
+  ];
+
+  const maPeriods = [
+    parseInt(document.getElementById('ma1').value) || 5,
+    parseInt(document.getElementById('ma2').value) || 10,
+    parseInt(document.getElementById('ma3').value) || 20,
+    parseInt(document.getElementById('ma4').value) || 60,
+  ];
+
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('error-msg').style.display = 'none';
+  document.getElementById('result-tbody').innerHTML = '';
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('scan-btn').disabled = true;
+
+  const results = [];
+  const goldenResults = [];
+  let scanned = 0, failed = 0, bbwCount = 0, goldenCount = 0;
+
+  for (const sym of symbols) {
+    setProgress(scanned, symbols.length, `抓取 ${sym}… (${scanned + 1}/${symbols.length})`);
+    try {
+      const data = await fetchFinMind(sym, apiKey);
+      if (!data || data.length < slow + sig + 5) { failed++; scanned++; continue; }
+
+      const sorted = data.sort((a, b) => a.date.localeCompare(b.date));
+      const closes  = sorted.map(d => parseFloat(d.close)).filter(v => !isNaN(v));
+      const volumes = sorted.map(d => parseFloat(d.Trading_Volume || d.volume || 0)).filter(v => !isNaN(v));
+
+      // 計算 BBW
+      const bb = calcBB(closes, bbLen, bbStd);
+      if (!bb) { scanned++; continue; }
+      const bbwOK = bb.bbw < bbThr;
+      if (bbwOK) bbwCount++;
+
+      // 計算 MACD
+      const macd = calcMACD(closes, fast, slow, sig);
+      if (!macd) { scanned++; continue; }
+
+      const latestDIF  = macd.dif[macd.dif.length - 1];
+      const latestDEA  = macd.dea[macd.dea.length - 1];
+      const latestHist = macd.hist[macd.hist.length - 1];
+      const hasGolden  = detectGoldenCross(macd.dif, macd.dea, lookbk);
+      if (hasGolden) goldenCount++;
+
+      // 計算均線多頭排列
+      const maResult = calcMAbullish(closes, maPeriods);
+
+      // 計算 RSI
+      const rsiArr = calcRSI(closes, rsiPeriod);
+      const latestRSI = rsiArr ? rsiArr[rsiArr.length - 1] : null;
+      // RSI 穿越門檻偵測（過去 lookbk 天內）
+      let rsiCrossed = false;
+      if (rsiArr && rsiArr.length >= 2) {
+        for (let i = Math.max(1, rsiArr.length - lookbk); i < rsiArr.length; i++) {
+          if (rsiArr[i] >= rsiThreshold && rsiArr[i - 1] < rsiThreshold) { rsiCrossed = true; break; }
+        }
+      }
+
+      // 條件判斷
+      let pass = true;
+      if (useBBW && !bbwOK) pass = false;
+      if (useGolden && !hasGolden) pass = false;
+      if (useBelowZero && !(hasGolden && latestDIF < 0)) pass = false;
+      if (useHistPos && !(latestHist > 0)) pass = false;
+      if (useMaBullish && !maResult.bullish) pass = false;
+      if (usePriceAboveMa && !maResult.priceAbove) pass = false;
+      if (useRSI && !(latestRSI !== null && latestRSI >= rsiThreshold)) pass = false;
+      if (useRSICross && !rsiCrossed) pass = false;
+
+      // 計算量比
+      let volRatioVal = null, volTrendOK = false, volTodayOK = false;
+      if (volumes.length >= volMaPeriod + 1) {
+        const maVol = volumes.slice(-volMaPeriod - 1, -1).reduce((a, b) => a + b, 0) / volMaPeriod;
+        const todayVol = volumes[volumes.length - 1];
+        const recent3AvgVol = volumes.slice(-4, -1).reduce((a, b) => a + b, 0) / 3;
+        volRatioVal = maVol > 0 ? todayVol / maVol : null;
+        volTodayOK  = volRatioVal !== null && volRatioVal >= volRatio;
+        volTrendOK  = maVol > 0 && (recent3AvgVol / maVol) >= volRatio;
+      }
+      if (useVolToday && !volTodayOK) pass = false;
+      if (useVolTrend && !volTrendOK) pass = false;
+
+      // 計算股價站上均線（20/60/100）
+      const crossMaValues = crossMaPeriods.map(p => calcSMA(closes, p));
+      const latestClose = closes[closes.length - 1];
+      // 偵測近 lookbk 天內是否有向上穿越
+      function detectPriceCross(closes, maVal, period, lb) {
+        if (maVal === null || closes.length < period + lb) return false;
+        for (let i = closes.length - lb; i < closes.length; i++) {
+          const maHist = calcSMA(closes.slice(0, i), period);
+          const maHistPrev = calcSMA(closes.slice(0, i - 1), period);
+          if (maHistPrev !== null && closes[i - 1] < maHistPrev && closes[i] >= maHist) return true;
+        }
+        return false;
+      }
+      const crossResults = crossMaPeriods.map((p, idx) => ({
+        ma: crossMaValues[idx],
+        aboveNow: crossMaValues[idx] !== null && latestClose > crossMaValues[idx],
+        justCrossed: detectPriceCross(closes, crossMaValues[idx], p, lookbk)
+      }));
+      if (useCrossMa1 && !crossResults[0].justCrossed) pass = false;
+      if (useCrossMa2 && !crossResults[1].justCrossed) pass = false;
+      if (useCrossMa3 && !crossResults[2].justCrossed) pass = false;
+      if (useCrossAll && !crossResults.every(r => r.aboveNow)) pass = false;
+
+      const stockData = {
+        sym,
+        close: closes[closes.length - 1],
+        bbw: bb.bbw,
+        upper: bb.upper,
+        lower: bb.lower,
+        dif: latestDIF,
+        dea: latestDEA,
+        hist: latestHist,
+        hasGolden,
+        bbwOK,
+        maResult,
+        maPeriods,
+        rsi: latestRSI,
+        rsiCrossed,
+        rsiThreshold,
+        volRatioVal,
+        volTodayOK,
+        volTrendOK,
+        crossResults,
+        crossMaPeriods
+      };
+
+      if (hasGolden) goldenResults.push(stockData);
+      if (pass) results.push(stockData);
+    } catch(e) {
+      failed++;
+      console.warn(`${sym} 失敗:`, e.message);
+    }
+    scanned++;
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  setProgress(symbols.length, symbols.length, '掃描完成');
+  document.getElementById('scan-btn').disabled = false;
+  document.getElementById('progress-wrap').style.display = 'none';
+
+  // 排序：BBW 最小優先
+  results.sort((a, b) => a.bbw - b.bbw);
+  goldenResults.sort((a, b) => a.bbw - b.bbw);
+
+  document.getElementById('stat-total').textContent = scanned;
+  document.getElementById('stat-bbw').textContent = bbwCount;
+  document.getElementById('stat-golden').textContent = goldenCount;
+  document.getElementById('stat-hit').textContent = results.length;
+
+  // 儲存到全域供切換使用
+  window._scanResults = results;
+  window._goldenResults = goldenResults;
+  window._bbThr = bbThr;
+  window._viewMode = 'hit'; // 'hit' | 'golden'
+
+  renderTable(results, bbThr, false);
+  document.getElementById('results-section').style.display = 'block';
+}
+
+function toggleGoldenView() {
+  const isGolden = window._viewMode === 'golden';
+  window._viewMode = isGolden ? 'hit' : 'golden';
+  const showGolden = window._viewMode === 'golden';
+  const card = document.getElementById('card-golden');
+  const hint = document.getElementById('golden-hint');
+  const bar  = document.getElementById('view-mode-bar');
+  card.classList.toggle('active-view', showGolden);
+  hint.textContent = showGolden ? '▶ 目前顯示金叉清單，再次點擊切回' : '點擊查看金叉清單';
+  bar.style.display = showGolden ? 'flex' : 'none';
+  renderTable(showGolden ? window._goldenResults : window._scanResults, window._bbThr, showGolden);
+}
+
+function renderTable(data, bbThr, isGoldenMode) {
+  const tbody = document.getElementById('result-tbody');
+  tbody.innerHTML = '';
+  if (data.length === 0) {
+    const msg = isGoldenMode ? '此次掃描無 MACD 金叉標的' : '未找到符合條件的標的';
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">${msg}</td></tr>`;
+    return;
+  }
+  data.forEach(r => {
+    const isExtreme = r.bbw < bbThr * 0.5;
+      const difColor = r.dif >= 0 ? 'var(--success)' : 'var(--danger)';
+      const histColor = r.hist >= 0 ? 'var(--success)' : 'var(--danger)';
+
+      // 均線標籤
+      let maTagClass, maTagText;
+      if (!r.maResult.valid) {
+        maTagClass = 'ma-bear'; maTagText = '資料不足';
+      } else if (r.maResult.priceAbove) {
+        maTagClass = 'ma-bull'; maTagText = '多頭+站上';
+      } else if (r.maResult.bullish) {
+        maTagClass = 'ma-bull'; maTagText = '多頭排列';
+      } else {
+        // 計算部分多頭（幾條MA由上到下）
+        const mas = r.maResult.mas;
+        let cnt = 0;
+        for (let i = 0; i < mas.length - 1; i++) {
+          if (mas[i] > mas[i + 1]) cnt++; else break;
+        }
+        if (cnt > 0) {
+          maTagClass = 'ma-partial';
+          maTagText = `部分(${cnt}/${mas.length - 1})`;
+        } else {
+          maTagClass = 'ma-bear'; maTagText = '空頭排列';
+        }
+      }
+
+      // MA tooltip 顯示各均線值
+      const maTooltip = r.maResult.valid
+        ? r.maPeriods.map((p, i) => `MA${p}=${r.maResult.mas[i].toFixed(2)}`).join(' | ')
+        : '';
+
+      // RSI 顯示顏色
+      const rsiVal = r.rsi !== null ? r.rsi.toFixed(1) : 'N/A';
+      const rsiColor = r.rsi === null ? 'var(--text3)'
+        : r.rsi >= 70 ? 'var(--danger)'
+        : r.rsi >= 50 ? 'var(--success)'
+        : 'var(--warning)';
+
+      // 量比顯示
+      const volStr = r.volRatioVal !== null ? r.volRatioVal.toFixed(2) + 'x' : 'N/A';
+      const volColor = r.volRatioVal === null ? 'var(--text3)'
+        : r.volRatioVal >= 2   ? 'var(--danger)'
+        : r.volRatioVal >= 1.5 ? 'var(--success)'
+        : r.volRatioVal >= 1   ? 'var(--warning)'
+        : 'var(--text3)';
+      const volExtra = r.volTrendOK ? ' 📈' : r.volTodayOK ? ' ↑' : '';
+
+      // 站上均線標籤
+      let crossTagParts = [];
+      if (r.crossResults && r.crossMaPeriods) {
+        r.crossResults.forEach((cr, i) => {
+          const p = r.crossMaPeriods[i];
+          if (cr.justCrossed) crossTagParts.push(`<span class="tag ma-bull" style="font-size:10px;padding:2px 5px">↑MA${p}</span>`);
+          else if (cr.aboveNow) crossTagParts.push(`<span class="tag ma-partial" style="font-size:10px;padding:2px 5px">MA${p}✓</span>`);
+          else crossTagParts.push(`<span class="tag ma-bear" style="font-size:10px;padding:2px 5px">MA${p}✗</span>`);
+        });
+      }
+      const crossTagHtml = crossTagParts.length ? crossTagParts.join(' ') : '<span class="tag no-cross">—</span>';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="sym">${r.sym}</span></td>
+        <td class="r"><span class="mono-val">${r.close.toFixed(2)}</span></td>
+        <td class="r"><span class="mono-val" style="color:${isExtreme ? 'var(--danger)' : 'var(--warning)'}">${r.bbw.toFixed(4)}</span></td>
+        <td class="r"><span class="mono-val" style="color:${difColor}">${r.dif.toFixed(4)}</span></td>
+        <td class="r"><span class="mono-val" style="color:var(--text2)">${r.dea.toFixed(4)}</span></td>
+        <td class="r"><span class="mono-val" style="color:${histColor}">${r.hist.toFixed(4)}</span></td>
+        <td class="r"><span class="mono-val" style="color:${rsiColor}">${rsiVal}${r.rsiCrossed ? ' ↑' : ''}</span></td>
+        <td class="r"><span class="mono-val" style="color:${volColor}">${volStr}${volExtra}</span></td>
+        <td class="c"><span class="tag ${isExtreme ? 'extreme' : 'squeeze'}">${isExtreme ? '極度壓縮' : '壓縮中'}</span></td>
+        <td class="c"><span class="tag ${r.hasGolden ? 'golden' : 'no-cross'}">${r.hasGolden ? '金叉' : '未交叉'}</span></td>
+        <td class="c"><span class="tag ${maTagClass}" title="${maTooltip}">${maTagText}</span></td>
+        <td class="c" style="white-space:nowrap">${crossTagHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+}
+// 動態更新 RSI 門檻說明文字
+function updateRSILabel() {
+  const thr = document.getElementById('rsi-threshold').value || 50;
+  const sub1 = document.querySelector('#filter-rsi').closest('.filter-row').querySelector('.filter-sub');
+  const sub2 = document.querySelector('#filter-rsi-cross').closest('.filter-row').querySelector('.filter-sub');
+  if (sub1) sub1.textContent = `RSI(${document.getElementById('rsi-period').value || 14}) ≥ ${thr}，動能偏多`;
+  if (sub2) sub2.textContent = `近 N 天內 RSI 從 ${thr} 以下向上穿越，動能剛轉強`;
+}
+document.getElementById('rsi-threshold').addEventListener('input', updateRSILabel);
+document.getElementById('rsi-period').addEventListener('input', updateRSILabel);
+
+// 動態更新成交量說明文字
+function updateVolLabel() {
+  const ratio = document.getElementById('vol-ratio').value || 1.5;
+  const period = document.getElementById('vol-ma-period').value || 20;
+  const t = document.getElementById('vol-label-today');
+  const tr = document.getElementById('vol-label-trend');
+  if (t)  t.textContent  = `今日量 ≥ ${ratio} × MA${period} 量，短線動能確認`;
+  if (tr) tr.textContent = `近 3 日均量 ≥ ${ratio} × MA${period} 量，確認持續買盤`;
+}
+document.getElementById('vol-ratio').addEventListener('input', updateVolLabel);
+document.getElementById('vol-ma-period').addEventListener('input', updateVolLabel);
+
+// 動態更新股價站上均線說明文字
+function updateCrossMALabel() {
+  const lb = document.getElementById('cross-lookback').value || 3;
+  const ps = [
+    document.getElementById('cross-ma1').value || 20,
+    document.getElementById('cross-ma2').value || 60,
+    document.getElementById('cross-ma3').value || 100,
+  ];
+  const descs = ['短線', '中線', '長線'];
+  ['cross-ma1-label','cross-ma2-label','cross-ma3-label'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = `近 ${lb} 天內收盤從 MA${ps[i]} 以下向上穿越，${descs[i]}剛轉強`;
+  });
+  const allEl = document.getElementById('cross-all-label');
+  if (allEl) allEl.textContent = `收盤 > MA${ps[0]} 且 > MA${ps[1]} 且 > MA${ps[2]}`;
+}
+['cross-ma1','cross-ma2','cross-ma3','cross-lookback'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', updateCrossMALabel);
+});
+</script>
