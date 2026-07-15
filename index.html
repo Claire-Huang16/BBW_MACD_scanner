@@ -72,6 +72,11 @@
   button.ghost { background: transparent; border-color: transparent; color: var(--text2); }
   button.ghost:hover { color: var(--text); border-color: var(--border2); background: var(--bg3); }
   .preset-label { font-size: 12px; color: var(--text3); margin-right: 2px; }
+  .result-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .result-actions button { font-size: 12px; padding: 7px 14px; }
+  #result-actions-msg { font-size: 12px; color: var(--success); opacity: 0; transition: opacity 0.25s ease; }
+  #result-actions-msg.show { opacity: 1; }
+  #result-actions-msg.err { color: var(--danger); }
   .progress-wrap { display: none; margin-bottom: 1.5rem; }
   .progress-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 6px; font-family: var(--mono); }
   .progress-track { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
@@ -1617,6 +1622,12 @@
         </table>
       </div>
     </div>
+
+    <div class="result-actions">
+      <button class="ghost" id="save-result-btn" onclick="saveScanResults()">💾 儲存掃描結果</button>
+      <button class="ghost" id="copy-codes-btn" onclick="copyScanCodes()">📋 複製以上掃描結果的代碼</button>
+      <span id="result-actions-msg"></span>
+    </div>
   </div>
 
   <footer>
@@ -2121,6 +2132,89 @@ function toggleTotalView() {
   const bar = document.getElementById('view-mode-bar');
   bar.style.display = 'flex';
   renderTable(window._allResults, window._bbThr, false);
+}
+
+function showResultMsg(msg, isErr) {
+  const el = document.getElementById('result-actions-msg');
+  el.textContent = msg;
+  el.className = isErr ? 'show err' : 'show';
+  clearTimeout(window._resultMsgTimer);
+  window._resultMsgTimer = setTimeout(() => { el.classList.remove('show'); }, 2500);
+}
+
+function getCurrentDisplayedData() {
+  // 依目前排序狀態，回傳「目前畫面上」顯示的那份資料（尊重 view mode 與排序）
+  const data = window._currentData || [];
+  return _sortKey ? sortData(data, _sortKey, _sortDir) : data;
+}
+
+function saveScanResults() {
+  const data = getCurrentDisplayedData();
+  if (!data.length) { showResultMsg('目前沒有可儲存的掃描結果', true); return; }
+
+  const headers = ['代號','收盤','漲跌%','BBW','DIF','DEA','Hist','RSI','量比','成交量','均線標籤','MACD金叉','外資近5日','投信近5日','自營近5日','三大法人近5日'];
+  const rows = data.map(r => [
+    r.sym,
+    r.close, 
+    (r.chgPct !== undefined && r.chgPct !== null) ? r.chgPct.toFixed(2) : '',
+    (r.bbw !== undefined && r.bbw !== null) ? r.bbw.toFixed(4) : '',
+    (r.dif !== undefined && r.dif !== null) ? r.dif.toFixed(3) : '',
+    (r.dea !== undefined && r.dea !== null) ? r.dea.toFixed(3) : '',
+    (r.hist !== undefined && r.hist !== null) ? r.hist.toFixed(3) : '',
+    (r.rsi !== undefined && r.rsi !== null) ? r.rsi.toFixed(1) : '',
+    (r.volRatioVal !== undefined && r.volRatioVal !== null) ? r.volRatioVal.toFixed(2) : '',
+    r.todayVol ?? '',
+    r.hasGolden ? '金叉' : '',
+    r.foreign5 ?? '',
+    r.trust5 ?? '',
+    r.dealer5 ?? '',
+    r.instTotal5 ?? ''
+  ]);
+
+  const csvLines = [headers.join(','), ...rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))];
+  const csvContent = '\uFEFF' + csvLines.join('\r\n'); // 加 BOM 避免 Excel 開啟中文亂碼
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const fname = `掃描結果_${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}_${pad(ts.getHours())}${pad(ts.getMinutes())}.csv`;
+  a.href = url;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showResultMsg(`已儲存 ${data.length} 筆掃描結果`, false);
+}
+
+function copyScanCodes() {
+  const data = getCurrentDisplayedData();
+  if (!data.length) { showResultMsg('目前沒有可複製的代碼', true); return; }
+
+  const codes = data.map(r => r.sym).join('\n');
+
+  const fallbackCopy = () => {
+    const ta = document.createElement('textarea');
+    ta.value = codes;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showResultMsg(`已複製 ${data.length} 檔代碼`, false); }
+    catch (e) { showResultMsg('複製失敗，請手動複製', true); }
+    document.body.removeChild(ta);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(codes)
+      .then(() => showResultMsg(`已複製 ${data.length} 檔代碼`, false))
+      .catch(() => fallbackCopy());
+  } else {
+    fallbackCopy();
+  }
 }
 
 let _sortKey = null;
